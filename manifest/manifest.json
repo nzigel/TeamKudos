@@ -1,0 +1,38 @@
+{
+    "$schema": "https://statics.teams.microsoft.com/sdk/v1.0/manifest/MicrosoftTeams.schema.json", 
+    "manifestVersion": "1.0",
+    "version": "1.0.0",
+    "id": "ceb1630f-a2a5-4089-95cc-dac7d4603538",
+    "packageName": "com.teams.kudos",
+    "developer": {
+        "name": "Nigel Parker",
+        "websiteUrl": "https://www.microsoft.com",
+        "privacyUrl": "https://www.microsoft.com/privacy",
+        "termsOfUseUrl": "https://www.microsoft.com/termsofuse"
+    },
+    "name": {
+        "short": "Kudos"
+    },
+    "description": {
+        "short": "This is a teams bot designed to help team members give their peers kudos.",
+        "full": "This is a teams bot designed to help team members give their peers kudos."
+    },
+    "icons": {
+        "outline": "kudos20x20.png",
+        "color": "kudos96x96.png"
+    },
+    "accentColor": "#60A18E",
+    "bots": [
+        {
+            "botId": "ceb1630f-a2a5-4089-95cc-dac7d4603538",
+            "scopes": [
+                "team",
+                "personal"
+            ]
+        }
+    ],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ]
+}

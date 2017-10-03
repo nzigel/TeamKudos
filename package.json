@@ -1,0 +1,26 @@
+{
+  "name": "kudos",
+  "version": "1.0.0",
+  "description": "a bot that runs in teams to help team members give kudos",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nzigel/TeamKudos.git"
+  },
+  "author": "Nigel Parker",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nzigel/TeamKudos/issues"
+  },
+  "homepage": "https://github.com/nzigel/TeamKudos#readme",
+  "dependencies": {
+    "botbuilder": "^3.10.2",
+    "botbuilder-teams": "^0.1.6",
+    "documentdb": "^1.12.2",
+    "dotenv-extended": "^2.0.1",
+    "restify": "^6.0.1"
+  }
+}
