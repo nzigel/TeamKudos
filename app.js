@@ -41,7 +41,7 @@ server.post('/api/messages', connector.listen());
 
 var bot = new builder.UniversalBot(connector, [
     function (session) {
-        //session.userData.profile = {};
+        //session.userData.profile = {}; // uncomment to reset userData
         var isChannelConversation = session.message.address.conversation.isGroup;
         
         if (isChannelConversation) {
@@ -57,19 +57,19 @@ var bot = new builder.UniversalBot(connector, [
             .inputs([
                 new teams.O365ConnectorCardMultichoiceInput(session)
                     .id("kudoslist")
-                    .title("Kudos for "+session.userData.profile.selecteduser.name)
+                    .title("Kudos for "+session.userData.profile.selecteduser.name+" working on '"+session.userData.profile.channel.name+"'")
                     .isMultiSelect(true)
                     .style('expanded')
                     .choices([
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Was a great member of the team").value("0"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Kept the team organized and on track").value("1"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Really understood and communicated the customer requirements").value("2"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Knew or learned to use the tools and technology needed for the hack").value("3"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Would definately invite to another hack").value("4"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("I really learned a lot from "+session.userData.profile.selecteduser.name).value("5"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Went above and beyond the call of duty").value("6"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("A technical genius").value("7"),
-                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Essential to the success of the project").value("8")
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Was a great member of the team").value("1"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Kept the team organized and on track").value("2"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Really understood and communicated the customer requirements").value("3"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Knew or learned to use the tools and technology needed for the hack").value("4"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Would definately invite to another hack").value("5"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("I really learned a lot from "+session.userData.profile.selecteduser.name).value("6"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Went above and beyond the call of duty").value("7"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("A technical genius").value("8"),
+                    new teams.O365ConnectorCardMultichoiceInputChoice(session).display("Essential to the success of the project").value("9")
                     ]),
                 new teams.O365ConnectorCardTextInput(session)
                         .id("textkudos")
@@ -83,6 +83,16 @@ var bot = new builder.UniversalBot(connector, [
                     .body(JSON.stringify({
                     kudoslist: '{{kudoslist.value}}',
                     textkudos: '{{textkudos.value}}',
+                    toName: session.userData.profile.selecteduser.name,
+                    toEmail: session.userData.profile.selecteduser.email,
+                    toId: session.userData.profile.selecteduser.id,
+                    toAlias: session.userData.profile.selecteduser.userPrincipalName,
+                    frmName: session.userData.profile.requser.name,
+                    frmEmail: session.userData.profile.requser.email,
+                    frmId: session.userData.profile.requser.id,
+                    frmAlias: session.userData.profile.requser.userPrincipalName,
+                    projectId: session.userData.profile.channel.id,
+                    projectName: session.userData.profile.channel.name
                     }))
             ]);
 
@@ -99,6 +109,7 @@ var bot = new builder.UniversalBot(connector, [
                 session.send(msg);
                 session.endDialog();
 
+                session.userData.profile = {};  // reset userdata for future kudos loops
         }
     },
     function (session, results) {
@@ -106,6 +117,10 @@ var bot = new builder.UniversalBot(connector, [
         
         var btns = [];
         session.userData.profile.users.forEach(function(element) {
+            if (session.message.address.user.id==element.id) {
+                // matched the requesting user
+                session.userData.profile.requser = element;
+            }
             btns.push(builder.CardAction.imBack(session, "Give "+element.name+" Kudos", element.name));
         }, this);
 
@@ -122,27 +137,118 @@ var bot = new builder.UniversalBot(connector, [
 ]);
 
 var o365CardActionHandler = function (event, query, callback) {
-    var userId = event.address.user.id;
+
     var body = JSON.parse(query.body);
-    var kudosList = body.kudoslist;
-    var kudosText = body.textkudos;
-    
+    var kudosList = body.kudoslist.split("; ");
+
+    var docObj = {
+        "fromName": body.frmName,
+        "fromEmail": body.frmEmail,
+        "fromId": body.frmId,
+        "fromAlias": body.frmAlias,
+        "toName": body.toName,
+        "toEmail": body.toEmail,
+        "toId": body.toId,
+        "toAlias": body.toAlias,
+        "projectId": body.projectId,
+        "projectName": body.projectName,
+        "Q1": false,
+        "Q2": false,
+        "Q3": false,
+        "Q4": false,
+        "Q5": false,
+        "Q6": false,
+        "Q7": false,
+        "Q8": false,
+        "Q9": false,
+        "verbatim": body.textkudos
+    }
+
+    kudosList.forEach(function(element) {
+        switch (element) {
+            case "1":
+            docObj.Q1=true;
+            break;
+            case "2":
+            docObj.Q2=true;
+            break;
+            case "3":
+            docObj.Q3=true;
+            break;
+            case "4":
+            docObj.Q4=true;
+            break;
+            case "5":
+            docObj.Q5=true;
+            break;
+            case "6":
+            docObj.Q6=true;
+            break;
+            case "7":
+            docObj.Q7=true;
+            break;
+            case "8":
+            docObj.Q8=true;
+            break;
+            case "9":
+            docObj.Q9=true;
+            break;
+        }
+    }, this);
+
+    client.queryDocuments(
+        collectionUrl,
+        'SELECT * FROM c where c.fromId = "'+docObj.fromId+'" and c.toId ="'+docObj.toId+'" and c.projectId = "'+docObj.projectId+'"'
+        ).toArray((err, results) => {
+            if (err) reject(err)
+            else {
+                if (results.length==0){
+                    // there isn't a document for this person review on this project so create it
+
+                    client.createDocument(collectionUrl, docObj, (err, created) => {
+                        if (err) reject(err)
+                    });
+                }
+                else {
+                    for (var queryResult of results) {
+                        replaceDocument(queryResult, docObj);
+                    }
+                }
+
+            }
+        });
+
     callback(null, null, 200);
 };
 connector.onO365ConnectorCardAction(o365CardActionHandler);
+
 
 bot.dialog('setUserList', [
     function (session, args, next) {
         session.dialogData.profile = args || {}; // Set the profile or create the object.
         if (!session.dialogData.profile.users) {
-            connector.fetchMembers(session.message.address.serviceUrl, session.message.address.conversation.id, function (err, result) {
+            connector.fetchMembers(session.message.address.serviceUrl, session.message.address.conversation.id, function (err, members) {
                 if (err) {
                     session.endDialog('There was an error collecting the list of users.');
                 }
                 else {
                     // load the userlist into the profile as it wasn't already there
-                    session.dialogData.profile.users = result;
+                    session.dialogData.profile.users = members;
                     next();
+                }
+            });
+            
+            connector.fetchChannelList(session.message.address.serviceUrl, session.message.sourceEvent.team.id, function (err, channels) {
+                if (err) {
+                    session.endDialog('There was an error collecting the list of channels.');
+                }
+                else {
+                    channels.forEach(function(channel) {
+                        if (channel.id == session.message.sourceEvent.channel.id) {
+                            session.userData.profile.channel = channel;
+                        }
+                    }, this);
+        
                 }
             });
         } 
@@ -160,13 +266,20 @@ bot.dialog('personButtonClick', [
     function (session, args, next) {
         // Get color and optional size from users utterance
         var utterance = args.intent.matched[0].replace("Give ", "").replace(" <at>Kudos", "");
-        session.userData.profile.users.forEach(function(element) {
-            if(utterance==element.name) {
-                // match the user
-                session.userData.profile.selecteduser = element;
-            }
-        }, this);
-        session.beginDialog('Start1to1Chat');
+        if (session.message.address.user.name==utterance) {
+            // you can't give kudos to yourself
+            session.endDialog("Nice try, you can't give kudos to yourself");
+        }
+        else {
+            session.userData.profile.users.forEach(function(element) {
+                if(utterance==element.name) {
+                    // match the user
+                    session.userData.profile.selecteduser = element;
+                }
+            }, this);
+            
+            session.beginDialog('Start1to1Chat');
+        }
     }
 ]).triggerAction({ matches: /(Give)\s.*Kudos/i });
 
@@ -194,3 +307,15 @@ bot.dialog('Start1to1Chat', function (session) {
     bot.beginDialog(address, '/');
 
 });
+
+
+function replaceDocument(document,docObj) {
+    let documentUrl = `${collectionUrl}/docs/${document.id}`;
+
+    docObj.id = document.id;
+    return new Promise((resolve, reject) => {
+        client.replaceDocument(documentUrl, docObj, (err, result) => {
+            if (err) reject(err);
+        });
+    });
+};
