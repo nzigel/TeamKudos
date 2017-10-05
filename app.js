@@ -45,7 +45,29 @@ var bot = new builder.UniversalBot(connector, [
         var isChannelConversation = session.message.address.conversation.isGroup;
         
         if (isChannelConversation) {
-            session.beginDialog('setUserList', session.userData.profile);
+            // set the user session and kick off the process 
+
+            setusers(session) 
+                .then(setchannel(session))
+                .then(function(good) {
+                    var btns = [];
+                    session.userData.profile.users.forEach(function(element) {
+                        if (session.message.address.user.id==element.id) {
+                            // matched the requesting user
+                            session.userData.profile.requser = element;
+                        }
+                        btns.push(builder.CardAction.imBack(session, "Give "+element.name+" Kudos", element.name));
+                    }, this);
+            
+                    var msg = new builder.Message(session);
+                    msg.attachmentLayout(builder.AttachmentLayout.carousel)
+                    msg.attachments([
+                        new builder.HeroCard(session)
+                            .title('Select a person to give Kudos')
+                            .buttons(btns)
+                    ]);
+                    session.send(msg).endDialog();
+                });
         }
         else {
             // we have a 1:1 conversation with a selected user
@@ -111,30 +133,63 @@ var bot = new builder.UniversalBot(connector, [
 
                 session.userData.profile = {};  // reset userdata for future kudos loops
         }
-    },
-    function (session, results) {
-        session.userData.profile.users = results.response; // Save user profile.
-        
-        var btns = [];
-        session.userData.profile.users.forEach(function(element) {
-            if (session.message.address.user.id==element.id) {
-                // matched the requesting user
-                session.userData.profile.requser = element;
-            }
-            btns.push(builder.CardAction.imBack(session, "Give "+element.name+" Kudos", element.name));
-        }, this);
-
-        var msg = new builder.Message(session);
-        msg.attachmentLayout(builder.AttachmentLayout.carousel)
-        msg.attachments([
-            new builder.HeroCard(session)
-                .title('Select a person to give Kudos')
-                .buttons(btns)
-        ]);
-        session.send(msg).endDialog();
-        
     }
 ]);
+
+
+
+function setusers (session) {
+    return new Promise((good, bad)=>{
+        if (!session.userData.profile) session.userData.profile = {};
+        if (!session.userData.profile.users) {
+            connector.fetchMembers(session.message.address.serviceUrl, session.message.address.conversation.id, function (err, members) {
+                if (err) {
+                    bad(err);
+                    return;
+                }
+                else {
+                    // load the userlist into the profile as it wasn't already there
+                    session.userData.profile.users = members;
+
+                    good(members);
+                    return;
+                }
+            });
+        } 
+        else {
+            good(session.userData.profile.users);
+            return;
+        }
+    });
+}
+
+function setchannel (session) {
+    return new Promise((good, bad)=>{
+        if (!session.userData.profile) session.userData.profile = {};
+        if (!session.userData.profile.channel) {
+            connector.fetchChannelList(session.message.address.serviceUrl, session.message.sourceEvent.team.id, function (err, channels) {
+                if (err) {
+                    bad(err);
+                    return;
+                }
+                else {
+                    channels.forEach(function(channel) {
+                        if (channel.id == session.message.sourceEvent.channel.id) {
+                            session.userData.profile.channel = channel;
+                            good(session.userData.profile.channel);
+                            return;
+                        }
+                    }, this);
+                }
+            });
+        } 
+        else {
+            good(session.userData.profile.channel);
+            return;
+        }
+    });
+}
+
 
 var o365CardActionHandler = function (event, query, callback) {
 
@@ -221,64 +276,35 @@ var o365CardActionHandler = function (event, query, callback) {
     callback(null, null, 200);
 };
 connector.onO365ConnectorCardAction(o365CardActionHandler);
-
-
-bot.dialog('setUserList', [
-    function (session, args, next) {
-        session.dialogData.profile = args || {}; // Set the profile or create the object.
-        if (!session.dialogData.profile.users) {
-            connector.fetchMembers(session.message.address.serviceUrl, session.message.address.conversation.id, function (err, members) {
-                if (err) {
-                    session.endDialog('There was an error collecting the list of users.');
-                }
-                else {
-                    // load the userlist into the profile as it wasn't already there
-                    session.dialogData.profile.users = members;
-                    next();
-                }
-            });
-            
-            connector.fetchChannelList(session.message.address.serviceUrl, session.message.sourceEvent.team.id, function (err, channels) {
-                if (err) {
-                    session.endDialog('There was an error collecting the list of channels.');
-                }
-                else {
-                    channels.forEach(function(channel) {
-                        if (channel.id == session.message.sourceEvent.channel.id) {
-                            session.userData.profile.channel = channel;
-                        }
-                    }, this);
-        
-                }
-            });
-        } 
-        else {
-            next();
-        }
-        
-    },
-    function (session) {
-        session.endDialogWithResult({ response: session.dialogData.profile.users });
-    }
-]);     
+   
 
 bot.dialog('personButtonClick', [
     function (session, args, next) {
         // Get color and optional size from users utterance
         var utterance = args.intent.matched[0].replace("Give ", "").replace(" <at>Kudos", "");
-        if (session.message.address.user.name==utterance) {
+        if (session.message.address.user.name.replace(" (Guest)","")==utterance) {
             // you can't give kudos to yourself
             session.endDialog("Nice try, you can't give kudos to yourself");
         }
         else {
-            session.userData.profile.users.forEach(function(element) {
-                if(utterance==element.name) {
-                    // match the user
-                    session.userData.profile.selecteduser = element;
-                }
-            }, this);
-            
-            session.beginDialog('Start1to1Chat');
+
+            setusers(session) 
+            .then(setchannel(session))
+            .then(function(good) {
+                session.userData.profile.users.forEach(function(element) {
+                    if(utterance==element.name) {
+                        // match the user
+                        session.userData.profile.selecteduser = element;
+                    }
+                    else if (session.message.address.user.id==element.id) {
+                        // matched the requesting user
+                        session.userData.profile.requser = element;
+                    }
+
+                }, this);
+                
+                session.beginDialog('Start1to1Chat');
+            });
         }
     }
 ]).triggerAction({ matches: /(Give)\s.*Kudos/i });
